@@ -1,0 +1,309 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<!--
+Element providing solution to no problem in particular.
+
+##### Example
+
+    <linechart-element></linechart-element>
+
+@element linechart-element
+@blurb Element providing solution to no problem in particular.
+@status alpha
+@homepage http://polymerlabs.github.io/linechart-element
+-->
+<polymer-element
+  name="linechart-element"
+  attributes="
+    width
+    height
+
+    x-label
+    x-domain
+    x-scale
+    x-format
+    x-ticks
+    x-margin
+
+    y-label
+    y-domain
+    y-scale
+    y-format
+    y-ticks
+    y-margin
+
+    series
+  ">
+
+  <template>
+    <link rel="stylesheet" href="linechart-element.css" />
+    <div id="graph"></div>
+    {{caption}}
+  </template>
+
+  <script src="d3.min.js"></script>
+  <script>
+
+function linechart(div, opts) {
+
+  function noFormat() { return ""; };
+  noFormat.replace = noFormat;
+
+  var superscript = "â°Â¹Â²Â³â´âµâ¶â·â¸â¹";
+  function formatPower(d) { return (d + "").split("").map(function(c) { return superscript[c]; }).join(""); };
+  function ticksPow10(d) { return 10 + formatPower(Math.round(Math.log(d) / Math.LN10)); }
+
+  var series = opts.data;
+  for (var key in series) if (series.hasOwnProperty(key)) {
+    var arr = series[key].points.filter(function (a) {
+      return opts.xAxis.domain[0] <= a[opts.xAxis.attr] && a[opts.xAxis.attr] <= opts.xAxis.domain[1];
+    });
+    series[key].points = arr;
+  }
+  var width = opts.width - (opts.margin.left + opts.margin.right);
+  var height = opts.height - (opts.margin.top + opts.margin.bottom);
+
+  var x = ((opts.xAxis.scale == 'log') ? d3.scale.log() : d3.scale.linear()).range([0, width]);
+  var y = ((opts.yAxis.scale == 'log') ? d3.scale.log() : d3.scale.linear()).range([height, 0]);
+
+  // var xAxis = d3.svg.axis().scale(x).orient("bottom").ticks(20, opts.xAxis.format).tickValues(opts.xAxis.ticks).tickSize(-5);
+  var xAxis = d3.svg.axis().scale(x).orient("bottom").ticks(20, noFormat).tickValues(opts.xAxis.ticks).tickSize(-5);
+  var xAxisTop = d3.svg.axis().scale(x).orient("top").ticks(20, noFormat).tickValues(opts.xAxis.ticks).tickSize(-5);
+  var yFormat = (opts.yAxis.scale == 'log') ? opts.yAxis.format : noFormat;
+  var yAxis = d3.svg.axis().scale(y).orient("left").ticks(10, yFormat).tickValues(opts.yAxis.ticks).tickSize(-5);
+  var yAxisRight = d3.svg.axis().scale(y).orient("right").ticks(10, noFormat).tickValues(opts.yAxis.ticks).tickSize(-5);
+  
+  function fx(d) { return x(d[opts.xAxis.attr]); }
+  function fy(d) { return y(d[opts.yAxis.attr]); }
+  var line = d3.svg.line().interpolate("linear").x(fx).y(fy);
+
+  var keys = d3.keys(series);
+  var algo_arr = keys.map(function(key) { return { key: key, color: series[key].color, values: series[key].points }; });
+  function extreme(f, arr, attr) { return f(arr, function (a) { return f(a.values, function (d) { return d[attr]; }); }); }
+  // x.domain(d3.extent(data, function(d) { return d.Q; }));
+  x.domain(opts.xAxis.domain || [ extreme(d3.min, algo_arr, opts.xAxis.attr), extreme(d3.max, algo_arr, opts.xAxis.attr) ]);
+  y.domain(opts.yAxis.domain || [ extreme(d3.min, algo_arr, opts.yAxis.attr), extreme(d3.max, algo_arr, opts.yAxis.attr) ]);
+
+  var svg = d3.select(div).append('svg');
+  svg.attr('width', opts.width);
+  svg.attr('height', opts.height);
+  div.style.width = opts.width+'px';
+  div.style.height = opts.height+'px';
+  svg = svg.append("g").attr("transform", "translate(" + opts.margin.left + "," + opts.margin.top + ")");
+
+  var arr = [];
+  keys.map(function(key) {
+    var p = series[key].points;
+    for (var i = 0; i < p.length; i++) {
+      arr.push({
+        x: p[i][0],
+        y: p[i][1],
+        symbol: series[key].symbol,
+        color: series[key].color,
+      });
+    }
+  });
+
+  svg.selectAll("path.dot")
+     .data(arr)
+     .enter().append("path")
+     .attr("class", "dot")
+     .attr("transform", function (d) { return "translate(" + x(d.x) + ", " + y(d.y) + ")"; })
+     .attr("d", function (d) { return d3.svg.symbol().size(30).type(d.symbol)(); })
+     .attr("fill", function (d) { return d.color; })
+     .attr("stroke", function (d) { return d.color; });
+
+  var legendG = svg.append("g");
+  keys.map(function(key) {
+    var attr = {
+      x: series[key].x || -1000,
+      y: series[key].y || -1000,
+      fill: series[key].color,
+      style: "font-size:14px",
+      "alignment-baseline": 'middle'
+    };
+    legendG.append("text").attr(attr).text(key);
+    legendG.append("path").attr({
+      "d": "M" + (attr.x - 20) + " " + attr.y + " L" + (attr.x - 1) + " " + attr.y,
+      "stroke": series[key].color,
+    });
+    legendG.append("path").attr({
+      transform: "translate(" + (attr.x - 10) + ", " + attr.y + ")",
+      fill: series[key].color,
+      d: d3.svg.symbol().size(30).type(series[key].symbol)(),
+    });
+  });
+
+  opts.fontSize = opts.fontSize || "15px";
+
+  var xAxisG = svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .style({"shape-rendering": "crispEdges", "font-size": opts.fontSize})
+      .call(xAxis);
+  xAxisG.selectAll("text").attr("y", 7);
+  xAxisG.selectAll("path").attr({"fill": "none", "stroke":"black"});
+  xAxisG.selectAll("line").attr({"fill": "none", "stroke":"black"});
+
+  if (opts.xAxis.scale == 'log')
+    toPower10(xAxisG, opts.fontSize);
+
+  xAxisG.append("text")
+      .attr("transform", "translate(" + (width / 2) + ", 0)")
+      .attr("y", opts.xAxis.margin)
+      .style({"text-anchor": "middle", "font-size": opts.fontSize })
+      .text(opts.xAxis.label);
+  var xTopAxisG = svg.append("g")
+      .attr("class", "x axis top")
+      .attr("transform", "translate(0,0)")
+      .style({"shape-rendering": "crispEdges", "font-size": opts.fontSize})
+      .call(xAxisTop);
+  xTopAxisG.selectAll("text").text(null);
+  xTopAxisG.selectAll("path").attr({"fill": "none", "stroke":"black"});
+  xTopAxisG.selectAll("line").attr({"fill": "none", "stroke":"black"});
+
+  var yAxisG = svg.append("g")
+      .attr("class", "y axis")
+      .style({"shape-rendering": "crispEdges", "font-size": opts.fontSize})
+      .call(yAxis);
+  yAxisG.selectAll("text").attr("x", -5);
+  yAxisG.selectAll("path").attr({"fill": "none", "stroke":"black"});
+  yAxisG.selectAll("line").attr({"fill": "none", "stroke":"black"});
+
+  if (opts.yAxis.scale == 'log' && opts.yAxis.format == 'pow10')
+    toPower10(yAxisG, opts.fontSize);
+
+  yAxisG.append("text")
+      .attr("transform", "rotate(-90) translate(-" + 1*(height/2) + ", 0)")
+      .attr("y", -opts.yAxis.margin)
+      .style({"text-anchor": "middle", "font-size": opts.fontSize })
+      .text(opts.yAxis.label);
+  var yRightAxisG = svg.append("g")
+      .attr("class", "y axis right")
+      .attr("transform", "translate(" + width + ",0)")
+      .style({"shape-rendering": "crispEdges", "font-size": opts.fontSize})
+      .call(yAxisRight);
+  yRightAxisG.selectAll("text").text(null);
+  yRightAxisG.selectAll("path").attr({"fill": "none", "stroke":"black"});
+  yRightAxisG.selectAll("line").attr({"fill": "none", "stroke":"black"});
+
+  var lines = svg.selectAll(".lines")
+    .data(algo_arr)
+      .enter()
+      .append("g").attr("class", "lines")
+      .append("path")
+      .attr("class", "line")
+      .attr("d", function(d) { return line(d.values); })
+      .style("stroke", function(d) { return d.color; });
+
+  svg.selectAll(".line").attr({
+    "fill": "none",
+    "stroke": "steelblue",
+    "stroke-width": "1.5px",
+  });
+}
+
+function toPower10(g, fontSize) {
+  var texts = g.selectAll(".tick text").text(null);
+  texts.filter(isOneOrTen).text(function (d) { return d; })
+
+  texts.filter(isPowerOfTen)
+      .text(10)
+    .append("tspan")
+      .attr("dy", "-.5em")
+      .style({"shape-rendering": "crispEdges", "font-size": fontSize - 3})
+      .text(function(d) { return Math.round(Math.log(d) / Math.LN10); });
+}
+
+function isPowerOfTen(d) {
+  if (isOneOrTen(d)) return false;
+  return d / Math.pow(10, Math.ceil(Math.log(d) / Math.LN10 - 1e-12)) === 1;
+}
+
+function isOneOrTen(d) {
+  return (d == 1 || d == 10);
+}
+
+function expTime(t) {
+  function f(x) {
+    var v = d3.format(".2f")(x) + "";
+    while (v.length > 0 && v[v.length - 1] == '0') v = v.substring(0, v.length - 1);
+    if (v.length > 0 && v[v.length - 1] == '.') v = v.substring(0, v.length - 1);
+    return v;
+  }
+  if (t >= 3600) return f(t / 3600) + 'h';
+  if (t >= 60) return f(t / 60) + 'm';
+  if (t >= 1) return f(t) + 's';
+  if (t >= 1e-3) return f(t*1e3) + 'ms';
+  if (t >= 1e-6) return f(t*1e6) + 'Âµs';
+  return "?";
+};
+
+    Polymer('linechart-element', {
+      author: 'Felix Halim',
+
+      width: 400,
+      height: 210,
+      fontSize: 14,
+      margin: "20 40 45 60",
+
+      ready: function() {
+        var margins = this.margin.split(" ");
+        var series = this['series'].match(/[^\s]+/g);
+        var data = {}, last = [];
+        for (var i = 0; i < series.length; i++) {
+          if (series[i][0] == "[") {
+            var s = JSON.parse(series[i]);
+            data[s[0]] = last = {
+              symbol: s[1],
+              color: s[2],
+              x: parseFloat(s[3]),
+              y: parseFloat(s[4]),
+              points: [],
+            };
+          } else {
+            var xy = '[' + series[i] + ']';
+            last.points.push(JSON.parse(xy));
+          }
+        }
+
+        linechart(this.$.graph, {
+          width: this.width,
+          height: this.height,
+          fontSize: this.fontSize,
+          margin: {
+            top: parseFloat(margins[0]),
+            right: parseFloat(margins[1]),
+            bottom: parseFloat(margins[2]),
+            left: parseFloat(margins[3])
+          },
+          xAxis: {
+            label: this['x-label'],
+            attr: 0,
+            scale: this['x-scale'],
+            domain: JSON.parse('[' + this['x-domain'] + ']'),
+            format: this['x-format'],
+            ticks: JSON.parse('[' + this['x-ticks'] + ']'),
+            margin: this['x-margin']
+          },
+          yAxis: {
+            label: this['y-label'],
+            attr: 1,
+            scale: this['y-scale'],
+            domain: JSON.parse('[' + this['y-domain'] + ']'),
+            format: this['y-format'],
+            ticks: JSON.parse('[' + this['y-ticks'] + ']'),
+            margin: this['y-margin']
+          },
+          data: data,
+        })
+      },
+
+      fireLasers: function() {
+        this.fire('linechart-element-lasers-success', { sound: 'Pew pew pew!' });
+      }
+    });
+
+  </script>
+
+</polymer-element>

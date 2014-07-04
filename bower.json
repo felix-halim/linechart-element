@@ -1,0 +1,7 @@
+{
+  "name": "linechart-element#gh-pages",
+  "private": true,
+  "dependencies": {
+    "seed-element": "felix-halim/linechart-element#master"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "seed-element",
+  "authors": [
+    "Anonymous <anonymous@example.com>"
+  ],
+  "description": "Element providing solution to no problem in particular.",
+  "keywords": "seed, polymer, web-components",
+  "main": "seed-element.html",
+  "license": "MIT",
+  "homepage": "https://github.com/<USERNAME>/seed-element/",
+  "ignore": [
+    "**/.*"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#~0.3.3",
+    "polymer-test-tools": "Polymer/polymer-test-tools#~0.3.3"
+  },
+  "_release": "9a6972eea9",
+  "_resolution": {
+    "type": "branch",
+    "branch": "master",
+    "commit": "9a6972eea9da01a46b8c2e081337fb4fddafe180"
+  },
+  "_source": "git://github.com/felix-halim/linechart-element.git",
+  "_target": "master",
+  "_originalSource": "felix-halim/linechart-element",
+  "_direct": true
+}

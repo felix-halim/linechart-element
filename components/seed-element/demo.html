@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <title>linechart-element Demo</title>
+
+  <script src="../platform/platform.js"></script>
+  <link rel="import" href="linechart-element.html">
+
+</head>
+<body unresolved>
+
+<p>An example of using <code>&lt;linechart-element></code>:</p>
+
+<linechart-element
+  width="300"
+  height="225"
+
+  x-label="Query Sequence"
+  x-domain="0.5, 2e2"
+  x-scale="log"
+  x-format="ticksPow10"
+  x-ticks="1, 10, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9"
+  x-margin="40"
+
+  y-label="Response Time (seconds)"
+  y-domain="0.4, 4"
+  y-scale="log"
+  y-format="ticksPow10"
+  y-ticks="0.5, 1, 2, 4"
+  y-margin="40"
+
+  series='
+    ["Sort","triangle-down","blue",130,100] 1,3 2,2.8 5,3
+    ["Crack","circle","red",130,120] 1,1 22,2 100,3
+  '
+>
+</linechart-element>
+
+</body>
+</html>
